@@ -1,11 +1,12 @@
-from operators.stage_redshift import StageToRedshiftOperator
-from operators.load_fact import LoadFactOperator
-from operators.load_dimension import LoadDimensionOperator
-from operators.data_quality import DataQualityOperator
+from plugins.operators.stage_redshift import StageToRedshiftOperator
+from plugins.operators.load_fact import LoadFactOperator
+from plugins.operators.load_dimension import LoadDimensionOperator
+from plugins.operators.data_quality import DataQualityOperator
 
+# Optional: make them available for plugin import
 __all__ = [
-    'StageToRedshiftOperator',
-    'LoadFactOperator',
-    'LoadDimensionOperator',
-    'DataQualityOperator'
+    "StageToRedshiftOperator",
+    "LoadDimensionOperator",
+    "LoadFactOperator",
+    "DataQualityOperator",
 ]
