@@ -3,9 +3,9 @@ from airflow import DAG
 from airflow.operators.dummy import DummyOperator
 from plugins.operators.stage_redshift import StageToRedshiftOperator
 from plugins.operators.load_fact import LoadFactOperator
+from plugins.operators.load_dimension import LoadDimensionOperator
 from plugins.operators.data_quality import DataQualityOperator
 from plugins.helpers.sql_queries import SqlQueries
-from plugins.helpers.data_quality import DataQualityTest
 
 # Default arguments for the DAG
 default_args = {
@@ -29,7 +29,6 @@ dag = DAG(
 
 # Start and end dummy tasks
 start_operator = DummyOperator(task_id='Begin_execution', dag=dag)
-
 end_operator = DummyOperator(task_id='Stop_execution', dag=dag)
 
 # Staging tasks
@@ -105,8 +104,14 @@ load_time_dimension_table = LoadDimensionOperator(
 run_quality_checks = DataQualityOperator(
     task_id='Run_data_quality_checks',
     dag=dag,
-    redshift_conn_id='redshift',
-    tables=['songplays', 'users', 'songs', 'artists', 'time']
+    postgres_conn_id='redshift',
+    tests=[
+        {'sql': "SELECT COUNT(*) FROM songplays WHERE playid IS NULL", 'expected_result': 0},
+        {'sql': "SELECT COUNT(*) FROM users WHERE userid IS NULL", 'expected_result': 0},
+        {'sql': "SELECT COUNT(*) FROM songs WHERE songid IS NULL", 'expected_result': 0},
+        {'sql': "SELECT COUNT(*) FROM artists WHERE artistid IS NULL", 'expected_result': 0},
+        {'sql': "SELECT COUNT(*) FROM time WHERE start_time IS NULL", 'expected_result': 0},
+    ]
 )
 
 # DAG task pipeline
@@ -114,14 +119,18 @@ start_operator >> [stage_events_to_redshift, stage_songs_to_redshift]
 
 [stage_events_to_redshift, stage_songs_to_redshift] >> load_songplays_table
 
-load_songplays_table >> [load_user_dimension_table,
-                         load_song_dimension_table,
-                         load_artist_dimension_table,
-                         load_time_dimension_table]
+load_songplays_table >> [
+    load_user_dimension_table,
+    load_song_dimension_table,
+    load_artist_dimension_table,
+    load_time_dimension_table
+]
 
-[load_user_dimension_table,
- load_song_dimension_table,
- load_artist_dimension_table,
- load_time_dimension_table] >> run_quality_checks
+[
+    load_user_dimension_table,
+    load_song_dimension_table,
+    load_artist_dimension_table,
+    load_time_dimension_table
+] >> run_quality_checks
 
 run_quality_checks >> end_operator
